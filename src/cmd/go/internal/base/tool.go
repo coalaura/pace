@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/pace"
 	"cmd/internal/par"
 )
 
@@ -33,6 +34,11 @@ func ToolPath(toolName string) (string, error) {
 	if !ValidToolName(toolName) {
 		return "", fmt.Errorf("bad tool name: %q", toolName)
 	}
+	pacePath, paceErr := pace.ToolPath(toolName)
+	if pacePath != "" || paceErr != nil {
+		return pacePath, paceErr
+	}
+
 	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
 	err := toolStatCache.Do(toolPath, func() error {
 		_, err := os.Stat(toolPath)

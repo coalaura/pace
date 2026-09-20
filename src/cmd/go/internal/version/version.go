@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/gover"
+	"cmd/go/internal/pace"
 )
 
 var CmdVersion = &base.Command{
@@ -88,7 +89,11 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
 		if gover.TestVersion != "" {
 			v = gover.TestVersion + " (TESTGO_VERSION)"
 		}
-		fmt.Printf("go version %s %s/%s\n", v, runtime.GOOS, runtime.GOARCH)
+		suffix := ""
+		if pace.Enabled() {
+			suffix = " (pace)"
+		}
+		fmt.Printf("go version %s %s/%s%s\n", v, runtime.GOOS, runtime.GOARCH, suffix)
 		return
 	}
 

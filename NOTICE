@@ -1,0 +1,9 @@
+PACE contains modifications to the Go programming language toolchain.
+
+PACE modifications are Copyright 2026 coalaura and are distributed under the BSD-style license in LICENSE.
+
+Portions originating from the Go project remain Copyright The Go Authors and are distributed under their original license terms. This notice does not replace upstream or third-party license notices.
+
+PACE is an independent project and is not affiliated with, sponsored by, or endorsed by Google LLC or the Go project.
+
+See PATENTS for the upstream Go patent grant.
