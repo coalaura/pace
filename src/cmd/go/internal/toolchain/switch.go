@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/pace"
 	"cmd/internal/telemetry/counter"
 )
 
@@ -235,12 +236,20 @@ func newerToolchain(need string, list []string) (string, error) {
 
 // HasAuto reports whether the GOTOOLCHAIN setting allows "auto" upgrades.
 func HasAuto() bool {
+	if pace.Enabled() {
+		return false
+	}
+
 	env := cfg.Getenv("GOTOOLCHAIN")
 	return env == "auto" || strings.HasSuffix(env, "+auto")
 }
 
 // HasPath reports whether the GOTOOLCHAIN setting allows "path" upgrades.
 func HasPath() bool {
+	if pace.Enabled() {
+		return false
+	}
+
 	env := cfg.Getenv("GOTOOLCHAIN")
 	return env == "path" || strings.HasSuffix(env, "+path")
 }

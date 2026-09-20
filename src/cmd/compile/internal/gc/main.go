@@ -64,7 +64,9 @@ func handlePanic() {
 // code, and finally writes the compiled package definition to disk.
 func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "init")
-	counter.Open()
+	if !objabi.PACETool() {
+		counter.Open()
+	}
 	counter.Inc("compile/invocations")
 
 	defer handlePanic()

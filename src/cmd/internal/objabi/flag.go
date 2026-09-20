@@ -215,12 +215,16 @@ func (versionFlag) Set(s string) error {
 	name = name[strings.LastIndex(name, `\`)+1:]
 	name = strings.TrimSuffix(name, ".exe")
 
+	name, pace := paceToolIdentity(name)
 	p := ""
+	if pace {
+		p = " pace"
+	}
 
 	// If the enabled experiments differ from the baseline,
 	// include that difference.
 	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
-		p = " X:" + goexperiment
+		p += " X:" + goexperiment
 	}
 
 	// The go command invokes -V=full to get a unique identifier
