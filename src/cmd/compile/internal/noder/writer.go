@@ -1201,6 +1201,7 @@ func (w *writer) funcExt(obj *types2.Func) {
 
 	w.Sync(pkgbits.SyncFuncExt)
 	w.pragmaFlag(pragma)
+	w.String(asLinkInternal(decl.Pragma))
 	w.linkname(obj)
 
 	if buildcfg.GOARCH == "wasm" {
@@ -2948,6 +2949,10 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 	}
 	pragma := p.(*pragmas)
 
+	if pragma.LinkInternal != "" && allowed != funcPragmas {
+		pw.errorf(pragma.LinkInternalPos, "misplaced go:linkinternal directive")
+	}
+
 	for _, pos := range pragma.Pos {
 		if pos.Flag&^allowed != 0 {
 			pw.errorf(pos.Pos, "misplaced compiler directive")
@@ -3324,6 +3329,13 @@ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
 		return 0
 	}
 	return p.(*pragmas).Flag
+}
+
+func asLinkInternal(p syntax.Pragma) string {
+	if p == nil {
+		return ""
+	}
+	return p.(*pragmas).LinkInternal
 }
 
 func asWasmImport(p syntax.Pragma) *WasmImport {
