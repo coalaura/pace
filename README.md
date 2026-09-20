@@ -1,16 +1,24 @@
-# The Go Programming Language
+# PACE
 
-Go is an open source programming language that makes it easy to build simple,
-reliable, and efficient software.
+PACE (Progressive Augmented Compiler Extensions) is an independent compiler/toolchain overlay for the Go programming language. It adds opt-in low-level compiler extensions while preserving stock-Go source compatibility and a small, easily rebased patch stack over upstream Go.
 
-![Gopher image](https://golang.org/doc/gopher/fiveyears.jpg)
-*Gopher image by [Renee French][rf], licensed under [Creative Commons 4.0 Attribution license][cc4-by].*
+**PACE is an independent project and is not affiliated with, sponsored by or endorsed by Google LLC or the Go project.**
 
-Our canonical Git repository is located at https://go.googlesource.com/go.
-There is a mirror of the repository at https://github.com/golang/go.
+## Extensions
 
-Unless otherwise noted, the Go source files are distributed under the
-BSD-style license found in the LICENSE file.
+* `//go:inline` forces eligible functions to be inlined regardless of normal cost heuristics; ordinary inlining eligibility restrictions still apply.
+* `//go:linkinternal` allows functions to inherit the compiler intrinsic behavior of internal Go functions while retaining a standard-Go fallback.
+* `//go:abiinternal` allows ordinary Plan 9 assembly functions to use Go's internal register ABI with an explicit argument and result register mapping on **amd64, arm64, loong64, ppc64, ppc64le, riscv64 and s390x**.
+
+PACE intentionally defines no separate language syntax. Extensions use otherwise-ignored `//go:` directives:
+
+```text
+same source
+  stock Go -> directives are ignored and fallback behavior remains valid
+  PACE     -> directives activate the enhanced compiler behavior
+```
+
+Keep valid fallback implementations and architecture-appropriate build constraints in your source.
 
 ### Assembly register mappings
 
@@ -40,31 +48,47 @@ Architectures without integer ABIInternal parameter registers in Go 1.27.1 (`386
 
 Assembly must be zero-frame `NOSPLIT` leaf code, with no calls, tail calls, explicit stack operations or stack operands. Branches must use labels within the function. Normal assembly argument information and stack maps are retained through the existing metadata machinery. As with other ABIInternal assembly, authors must preserve the target ABI's fixed-register invariants, including the link register on link-register architectures and, on amd64, `R14` (the current goroutine) and zeroed `X15`; there is no ABI0 wrapper to restore them. Explicit `<ABIInternal>` selectors remain restricted to the usual privileged packages.
 
-### Download and Install
+## Installation
 
-#### Binary Distributions
+**PACE 1.27.1 requires Go 1.27.1.** Each PACE release requires the exact matching standard Go release, not merely the same major/minor version. No second GOROOT or modified standard library is needed.
 
-Official binary distributions are available at https://go.dev/dl/.
+1. Install the matching official Go release normally.
+2. Download the matching OS/architecture archive from [PACE releases](https://github.com/coalaura/pace/releases) and extract/copy its contents into that installation's GOROOT (`go env GOROOT`).
+3. Run `pace version`.
 
-After downloading a binary release, visit https://go.dev/doc/install
-for installation instructions.
+Releases support Windows, Linux and macOS on amd64 and arm64. Windows archives are ZIP files; Linux and macOS archives are `.tar.gz` files. For example: `pace-1.27.1-windows-amd64.zip` or `pace-1.27.1-linux-arm64.tar.gz`.
 
-#### Install From Source
+The overlay contains exactly three executables, with `.exe` suffixes on Windows:
 
-If a binary distribution is not available for your combination of
-operating system and architecture, visit
-https://go.dev/doc/install/source
-for source installation instructions.
+```text
+$GOROOT/
+  bin/
+    go              (existing, unchanged)
+    pace
+    compilepe
+    asmpe
+  pace/
+    README.md
+    LICENSE
+    PATENTS
+    NOTICE
+    licenses/       (vendored dependency notices, with source paths)
+```
 
-### Contributing
+No stock Go files are overwritten. `pace` finds `compilepe` and `asmpe` beside its own executable and uses the matching GOROOT for all other tools, including the linker. Missing helpers or a mismatched GOROOT are errors. Running `go` remains unchanged.
 
-Go is the work of thousands of contributors. We appreciate your help!
+`pace version` prints `go version go1.27.1 <os>/<arch> (pace)`, while `pace env GOVERSION` remains `go1.27.1`. PACE compiler and assembler tool IDs have a `pace` suffix, separating their build actions from stock Go in the normal shared build cache.
 
-To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
+PACE stays on the local matching toolchain: automatic `GOTOOLCHAIN` switching and downloading are disabled. If a module requires a newer Go release, install the matching PACE and Go releases yourself. PACE does not collect or upload telemetry; `pace telemetry` is disabled and the stock Go telemetry configuration is left alone.
 
-Note that the Go project uses the issue tracker for bug reports and
-proposals only. See https://go.dev/wiki/Questions for a list of
-places to ask questions about the Go language.
+To uninstall, remove only `$GOROOT/bin/pace`, `$GOROOT/bin/compilepe`, `$GOROOT/bin/asmpe` and `$GOROOT/pace/` (use `.exe` filenames on Windows).
 
-[rf]: https://reneefrench.blogspot.com/
-[cc4-by]: https://creativecommons.org/licenses/by/4.0/
+## Versioning and source builds
+
+PACE release tags use `pace1.27.1`, `pace1.27.2`, `pace1.28.0` and so on, matching the corresponding Go release. PACE 1.27.1 is based on Go 1.27.1. Upstream-style `go1.27.1` tags identify upstream bases, not PACE releases.
+
+PACE uses the ordinary [Go source-tree build process](https://go.dev/doc/install/source), with the matching official Go release as the bootstrap compiler. Source builds retain `bin/go` and the ordinary `compile`/`asm` tool names for bootstrap and development. The [release workflow](.github/workflows/release.yml) then uses that toolchain to cross-build `cmd/go`, `cmd/compile` and `cmd/asm` as `pace`, `compilepe` and `asmpe`. Distribution policy activates only under the release executable names.
+
+## Upstream and license
+
+PACE is based on the [Go source tree](https://go.googlesource.com/go). Upstream copyright and licensing are preserved; PACE modifications use the same BSD-style license. See [LICENSE](LICENSE), [PATENTS](PATENTS) and [NOTICE](NOTICE). Binary releases also include vendored dependency license and notice files under `pace/licenses/`; those files retain their original terms.

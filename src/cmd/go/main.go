@@ -32,6 +32,7 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modget"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/pace"
 	"cmd/go/internal/run"
 	"cmd/go/internal/telemetrycmd"
 	"cmd/go/internal/telemetrystats"
@@ -97,12 +98,20 @@ var counterErrorsGOPATHEntryRelative = counter.New("go/errors:gopath-entry-relat
 
 func main() {
 	log.SetFlags(0)
-	telemetry.MaybeChild() // Run in child mode if this is the telemetry sidecar child process.
-	cmdIsGoTelemetryOff := cmdIsGoTelemetryOff()
+	if !pace.Enabled() {
+		telemetry.MaybeChild() // Run in child mode if this is the telemetry sidecar child process.
+	}
+	cmdIsGoTelemetryOff := pace.Enabled() || cmdIsGoTelemetryOff()
 	if !cmdIsGoTelemetryOff {
 		counter.Open() // Open the telemetry counter file so counters can be written to it.
 	}
 	handleChdirFlag()
+	err := pace.Check(cfg.GOROOT)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+
 	toolchain.Select()
 
 	if !cmdIsGoTelemetryOff {
@@ -288,6 +297,17 @@ func lookupCmd(args []string) (cmd *base.Command, used int) {
 }
 
 func invoke(cmd *base.Command, args []string) {
+	if pace.Enabled() && cmd == telemetrycmd.CmdTelemetry {
+		base.Fatalf("pace: telemetry is disabled; use go telemetry to manage stock Go telemetry")
+	}
+	if pace.Enabled() {
+		cleanup, err := pace.DisableChildTelemetry()
+		if err != nil {
+			base.Fatalf("pace: disabling child tool telemetry: %v", err)
+		}
+		base.AtExit(cleanup)
+	}
+
 	// 'go env' handles checking the build config
 	if cmd != envcmd.CmdEnv {
 		buildcfg.Check()

@@ -1,0 +1,148 @@
+# Copyright 2026 coalaura. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'pace*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate tag against upstream VERSION
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version=$(go run ./.github/scripts/release.go version "$RELEASE_TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [windows, linux, darwin]
+        goarch: [amd64, arm64]
+    env:
+      CGO_ENABLED: '0'
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up matching official bootstrap Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ needs.validate.outputs.version }}
+          cache: false
+      - name: Build the source tree
+        run: |
+          export GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOCACHE="$RUNNER_TEMP/bootstrap-cache"
+          cd src
+          ./make.bash
+      - name: Cross-build the overlay
+        id: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          # Source-tree tools keep upstream IDs. Isolate build-time artifacts
+          # from the stock bootstrap cache; installed PACE uses normal GOCACHE.
+          export GOCACHE="$RUNNER_TEMP/source-cache"
+          export GOROOT="$GITHUB_WORKSPACE"
+          suffix=''
+          if [[ "$GOOS" == windows ]]; then suffix='.exe'; fi
+          mkdir -p overlay/bin
+          ./bin/go build -trimpath -o "overlay/bin/pace$suffix" cmd/go
+          ./bin/go build -trimpath -o "overlay/bin/compilepe$suffix" cmd/compile
+          ./bin/go build -trimpath -o "overlay/bin/asmpe$suffix" cmd/asm
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+      - name: Sign pace
+        uses: coalaura/sign@v1
+        with:
+          path: overlay/bin/pace${{ steps.build.outputs.suffix }}
+          key: ${{ secrets.COALAURA_PFX }}
+          passphrase: ${{ secrets.COALAURA_PFX_PASSWORD }}
+          chain: |
+            https://wiese2.org/pki/issuing.pem
+            https://wiese2.org/pki/root.pem
+      - name: Sign compilepe
+        uses: coalaura/sign@v1
+        with:
+          path: overlay/bin/compilepe${{ steps.build.outputs.suffix }}
+          key: ${{ secrets.COALAURA_PFX }}
+          passphrase: ${{ secrets.COALAURA_PFX_PASSWORD }}
+          chain: |
+            https://wiese2.org/pki/issuing.pem
+            https://wiese2.org/pki/root.pem
+      - name: Sign asmpe
+        uses: coalaura/sign@v1
+        with:
+          path: overlay/bin/asmpe${{ steps.build.outputs.suffix }}
+          key: ${{ secrets.COALAURA_PFX }}
+          passphrase: ${{ secrets.COALAURA_PFX_PASSWORD }}
+          chain: |
+            https://wiese2.org/pki/issuing.pem
+            https://wiese2.org/pki/root.pem
+      - name: Package signed overlay and notices
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          go run ./.github/scripts/release.go package --tag "$RELEASE_TAG"
+          --goos '${{ matrix.goos }}' --goarch '${{ matrix.goarch }}'
+          --overlay overlay --output dist
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: signed-pace-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/pace-*
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: signed-pace-*
+          path: dist
+          merge-multiple: true
+      - name: Create checksums
+        working-directory: dist
+        run: |
+          test "$(find . -maxdepth 1 -type f -name 'pace-*' | wc -l)" -eq 6
+          sha256sum -b pace-* > SHA256SUMS
+      - name: Attest release archives
+        uses: actions/attest@v4
+        with:
+          subject-checksums: dist/SHA256SUMS
+      - name: Attest checksums
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/SHA256SUMS
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*
+          name: "PACE ${{ needs.validate.outputs.version }}"
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/pace"
 	"cmd/go/internal/run"
 	"cmd/go/internal/work"
 	"cmd/internal/pathcache"
@@ -96,6 +97,11 @@ var (
 // It must be called early in startup.
 // See https://go.dev/doc/toolchain#select.
 func Select() {
+	if pace.Enabled() {
+		gover.Startup.GOTOOLCHAIN = "local"
+		return
+	}
+
 	moduleLoader := modload.NewLoader()
 	log.SetPrefix("go: ")
 	defer log.SetPrefix("")
@@ -304,6 +310,10 @@ var TestVersionSwitch string
 // as a source of Go toolchains. Otherwise Exec tries the PATH but then downloads
 // a toolchain if necessary.
 func Exec(s *modload.Loader, gotoolchain string) {
+	if pace.Enabled() {
+		base.Fatalf("pace: automatic toolchain switching is disabled; install the matching PACE release")
+	}
+
 	log.SetPrefix("go: ")
 
 	writeBits = sysWriteBits()

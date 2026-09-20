@@ -26,7 +26,9 @@ import (
 func main() {
 	log.SetFlags(0)
 	log.SetPrefix("asm: ")
-	counter.Open()
+	if !objabi.PACETool() {
+		counter.Open()
+	}
 
 	buildcfg.Check()
 	GOARCH := buildcfg.GOARCH
