@@ -152,7 +152,7 @@ func analyzeFunc(fn *ir.Func, inlineMaxBudget int, nf *nameFinder) *FuncProps {
 // of, then there isn't really any point to moving ahead with it as an
 // inline candidate.
 func revisitInlinability(fn *ir.Func, funcProps *FuncProps, budgetForFunc func(*ir.Func) int32) {
-	if fn.Inl == nil {
+	if fn.Inl == nil || fn.Pragma&ir.ForceInline != 0 {
 		return
 	}
 	maxAdj := int32(LargestNegativeScoreAdjustment(fn, funcProps))
