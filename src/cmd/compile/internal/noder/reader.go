@@ -1223,6 +1223,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 	}
 
 	fn.Pragma = r.pragmaFlag()
+	fn.LinkInternal = r.String()
 	r.linkname(name)
 
 	if buildcfg.GOARCH == "wasm" {

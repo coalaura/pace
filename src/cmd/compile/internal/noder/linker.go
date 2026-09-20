@@ -268,6 +268,7 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
 	w.Sync(pkgbits.SyncFuncExt)
 
 	l.pragmaFlag(w, name.Func.Pragma)
+	w.String(name.Func.LinkInternal)
 	l.linkname(w, name)
 
 	if buildcfg.GOARCH == "wasm" {

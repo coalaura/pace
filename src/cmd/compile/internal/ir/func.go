@@ -151,6 +151,10 @@ type Func struct {
 	// WasmExport is used by the //go:wasmexport directive to store info about
 	// a WebAssembly function export.
 	WasmExport *WasmExport
+
+	// LinkInternal is the import/path.Function intrinsic identity from go:linkinternal.
+	// The caller is responsible for matching the target's signature and semantics.
+	LinkInternal string
 }
 
 // WasmImport stores metadata associated with the //go:wasmimport pragma.

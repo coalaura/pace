@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/buildcfg"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -2393,6 +2394,17 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	if sym.Pkg == ir.Pkgs.Runtime {
 		pkg = "runtime"
 	}
+	fn := sym.Name
+	if name, ok := sym.Def.(*ir.Name); ok && name.Func != nil && name.Func.LinkInternal != "" {
+		// Redirect only the intrinsic identity, retaining the target's lookup policy
+		// and the original function as the fallback when no intrinsic is available.
+		target := name.Func.LinkInternal
+		dot := strings.LastIndexByte(target, '.')
+		if dot <= 0 || dot == len(target)-1 {
+			return nil
+		}
+		pkg, fn = target[:dot], target[dot+1:]
+	}
 	if base.Flag.Race && pkg == "sync/atomic" {
 		// The race detector needs to be able to intercept these calls.
 		// We can't intrinsify them.
@@ -2404,7 +2416,6 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 		return nil
 	}
 
-	fn := sym.Name
 	if ssa.IntrinsicsDisable {
 		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GetCallerSP" || fn == "GetClosurePtr") ||
 			pkg == simdPackage {

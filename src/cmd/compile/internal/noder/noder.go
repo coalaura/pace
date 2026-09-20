@@ -7,6 +7,7 @@ package noder
 import (
 	"errors"
 	"fmt"
+	"go/token"
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
@@ -173,6 +174,9 @@ type pragmas struct {
 	Embeds     []pragmaEmbed
 	WasmImport *WasmImport
 	WasmExport *WasmExport
+
+	LinkInternal    string
+	LinkInternalPos syntax.Pos
 }
 
 func (p *pragmas) Nointerface() bool {
@@ -219,6 +223,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.WasmExport != nil {
 		p.error(syntax.Error{Pos: pragma.WasmExport.Pos, Msg: "misplaced go:wasmexport directive"})
 	}
+	if pragma.LinkInternal != "" {
+		p.error(syntax.Error{Pos: pragma.LinkInternalPos, Msg: "misplaced go:linkinternal directive"})
+	}
 }
 
 // pragma is called concurrently if files are parsed concurrently.
@@ -246,6 +253,28 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:linkinternal", strings.HasPrefix(text, "go:linkinternal "), strings.HasPrefix(text, "go:linkinternal\t"):
+		f := strings.Fields(text)
+		if len(f) != 2 {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkinternal import/path.Function"})
+			break
+		}
+		dot := strings.LastIndexByte(f[1], '.')
+		if dot <= 0 || !token.IsIdentifier(f[1][dot+1:]) {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkinternal import/path.Function"})
+			break
+		}
+		if err := checkImportPath(f[1][:dot], false); err != nil {
+			p.error(syntax.Error{Pos: pos, Msg: fmt.Sprintf("invalid go:linkinternal target: %v", err)})
+			break
+		}
+		if pragma.LinkInternal != "" {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:linkinternal directive"})
+			break
+		}
+		pragma.LinkInternal = f[1]
+		pragma.LinkInternalPos = pos
+
 	case strings.HasPrefix(text, "go:wasmimport "):
 		f := strings.Fields(text)
 		if len(f) != 3 {
