@@ -468,7 +468,7 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 	if ir.DoChildren(fn, v.do) {
 		return true
 	}
-	if v.budget < 0 {
+	if v.budget < 0 && fn.Pragma&ir.ForceInline == 0 {
 		v.reason = fmt.Sprintf("function too complex: cost %d exceeds budget %d", v.maxBudget-v.budget, v.maxBudget)
 		return true
 	}
@@ -820,8 +820,9 @@ opSwitch:
 
 	v.budget--
 
-	// When debugging, don't stop early, to get full cost of inlining this function
-	if v.budget < 0 && base.Flag.LowerM < 2 && !logopt.Enabled() && !v.debug {
+	// When debugging, don't stop early, to get full cost of inlining this function.
+	// With go:inline, keep checking for unsupported operations regardless of cost.
+	if v.budget < 0 && v.curFunc.Pragma&ir.ForceInline == 0 && base.Flag.LowerM < 2 && !logopt.Enabled() && !v.debug {
 		v.reason = "too expensive"
 		return true
 	}
@@ -1004,8 +1005,8 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCal
 	csi := pgoir.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
 	_, hot := candHotEdgeMap[csi]
 
-	if metric <= maxCost {
-		// Simple case. Function is already cheap enough.
+	if callee.Pragma&ir.ForceInline != 0 || metric <= maxCost {
+		// Simple case. Function is marked go:inline or already cheap enough.
 		return true, 0, metric, hot
 	}
 

@@ -456,6 +456,7 @@ const (
 
 	RegisterParams // TODO(register args) remove after register abi is working
 
+	ForceInline // func ignores inlining costs; does not override inlining restrictions, including Noinline
 )
 
 var BlankNode *Name
