@@ -219,11 +219,13 @@ func InitTables() {
 
 // AbiForBodylessFuncStackMap returns the ABI for a bodyless function's stack map.
 // This is not necessarily the ABI used to call it.
-// Currently (1.17 dev) such a stack map is always ABI0;
-// any ABI wrapper that is present is nosplit, hence a precise
-// stack map is not needed there (the parameters survive only long
-// enough to call the wrapped assembly function).
+// Ordinary assembly uses ABI0; go:abiinternal definitions use ABIInternal.
+// Any ABI wrapper is nosplit, so it does not need a precise stack map:
+// its parameters survive only long enough to call the wrapped function.
 func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
+	if HasABIInternalMapping(fn) {
+		return ssaConfig.ABI1
+	}
 	return ssaConfig.ABI0
 }
 
