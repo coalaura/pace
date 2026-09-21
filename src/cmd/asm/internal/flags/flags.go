@@ -29,6 +29,8 @@ var (
 	Std        = flag.Bool("std", false, "building standard library")
 )
 
+var ABIInternal = flag.String("abiinternal", "", "read compiler assembly register mappings from file")
+
 var DebugFlags struct {
 	CompressInstructions int    `help:"use compressed instructions when possible (if supported by architecture)"`
 	MayMoreStack         string `help:"call named function before all stack growth checks"`

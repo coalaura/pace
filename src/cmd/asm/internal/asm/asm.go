@@ -132,6 +132,9 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 		return
 	}
 	name := symbolName(&nameAddr)
+	if _, ok := p.abiInternal[nameAddr.Sym.Name]; ok {
+		nameAddr.Sym = p.ctxt.LookupABI(nameAddr.Sym.Name, obj.ABIInternal)
+	}
 	next := 1
 
 	// Next operand is the optional text flag, a literal integer.

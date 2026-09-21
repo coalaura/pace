@@ -177,6 +177,8 @@ type pragmas struct {
 
 	LinkInternal    string
 	LinkInternalPos syntax.Pos
+	ABIInternal     string
+	ABIInternalPos  syntax.Pos
 }
 
 func (p *pragmas) Nointerface() bool {
@@ -226,6 +228,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.LinkInternal != "" {
 		p.error(syntax.Error{Pos: pragma.LinkInternalPos, Msg: "misplaced go:linkinternal directive"})
 	}
+	if pragma.ABIInternal != "" {
+		p.error(syntax.Error{Pos: pragma.ABIInternalPos, Msg: "misplaced go:abiinternal directive"})
+	}
 }
 
 // pragma is called concurrently if files are parsed concurrently.
@@ -253,6 +258,14 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:abiinternal", strings.HasPrefix(text, "go:abiinternal "), strings.HasPrefix(text, "go:abiinternal\t"):
+		if pragma.ABIInternal != "" {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:abiinternal directive"})
+			break
+		}
+		pragma.ABIInternal = text
+		pragma.ABIInternalPos = pos
+
 	case text == "go:linkinternal", strings.HasPrefix(text, "go:linkinternal "), strings.HasPrefix(text, "go:linkinternal\t"):
 		f := strings.Fields(text)
 		if len(f) != 2 {

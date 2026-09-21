@@ -95,6 +95,9 @@ func main() {
 	for _, f := range flag.Args() {
 		lexer := lex.NewLexer(f)
 		parser := asm.NewParser(ctxt, architecture, lexer)
+		if !*flags.SymABIs && *flags.ABIInternal != "" {
+			parser.ReadABIInternal(*flags.ABIInternal)
+		}
 		ctxt.DiagFunc = func(format string, args ...any) {
 			diag = true
 			log.Printf(format, args...)
