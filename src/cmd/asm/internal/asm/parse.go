@@ -50,6 +50,7 @@ type Parser struct {
 	allowABI      bool             // Whether ABI selectors are allowed.
 	pkgPrefix     string           // Prefix to add to local symbols.
 	errorWriter   io.Writer
+	abiInternal   map[string]objabi.ABIInternalFunc
 }
 
 type Patch struct {
@@ -126,7 +127,8 @@ func (p *Parser) Parse() (*obj.Prog, bool) {
 		return nil, false
 	}
 	p.patch()
-	return p.firstProg, true
+	p.applyABIInternal()
+	return p.firstProg, p.errorCount == 0
 }
 
 // ParseSymABIs parses p's assembly code to find text symbol

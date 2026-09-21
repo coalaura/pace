@@ -278,6 +278,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	// Generate ABI wrappers. Must happen before escape analysis
 	// and doesn't benefit from dead-coding or inlining.
+	symABIs.ApplyABIInternal(noder.ABIInternal)
 	symABIs.GenABIWrappers()
 
 	deadlocals.Funcs(typecheck.Target.Funcs)

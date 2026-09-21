@@ -2846,6 +2846,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 
 	case *syntax.FuncDecl:
 		pw.checkPragmas(n.Pragma, funcPragmas, false)
+		pw.recordABIInternal(n)
 
 		obj := pw.info.Defs[n.Name].(*types2.Func)
 		pw.funDecls[obj] = n
@@ -2948,6 +2949,10 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 		return
 	}
 	pragma := p.(*pragmas)
+
+	if pragma.ABIInternal != "" && allowed != funcPragmas {
+		pw.errorf(pragma.ABIInternalPos, "misplaced go:abiinternal directive")
+	}
 
 	if pragma.LinkInternal != "" && allowed != funcPragmas {
 		pw.errorf(pragma.LinkInternalPos, "misplaced go:linkinternal directive")

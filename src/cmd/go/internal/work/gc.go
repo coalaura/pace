@@ -120,6 +120,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	if symabis != "" {
 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
+		defaultGcFlags = append(defaultGcFlags, "-abiinternal", a.Objdir+"abiinternal")
 	}
 
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
@@ -410,6 +411,7 @@ func asmArgs(a *Action, p *load.Package) []any {
 func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error) {
 	p := a.Package
 	args := asmArgs(a, p)
+	args = append(args, "-abiinternal", a.Objdir+"abiinternal")
 
 	var ofiles []string
 	for _, sfile := range sfiles {

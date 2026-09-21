@@ -1565,7 +1565,10 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	bv := bitvec.New(int32(nptr))
 
 	for _, p := range abiInfo.InParams() {
-		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
+		// Register argument spill slots in ABIInternal leaf assembly are not initialized.
+		if len(p.Registers) == 0 {
+			typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
+		}
 	}
 
 	nbitmap := 1
