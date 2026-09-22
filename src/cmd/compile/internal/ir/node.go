@@ -430,7 +430,7 @@ func (s *NameSet) Add(n *Name) {
 	(*s)[n] = struct{}{}
 }
 
-type PragmaFlag uint16
+type PragmaFlag uint32
 
 const (
 	// Func pragmas.
@@ -457,6 +457,7 @@ const (
 	RegisterParams // TODO(register args) remove after register abi is working
 
 	ForceInline // func ignores inlining costs; does not override inlining restrictions, including Noinline
+	NoBounds    // func omits runtime bounds checks originating in its body
 )
 
 var BlankNode *Name

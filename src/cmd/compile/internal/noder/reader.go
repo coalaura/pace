@@ -1424,6 +1424,7 @@ func (r *reader) funcBody(fn *ir.Func) {
 			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(src.NoXPos, nil))}
 		}
 		fn.Body = body
+		markNoBounds(fn, body)
 		fn.Endlineno = r.pos()
 	})
 
@@ -3808,6 +3809,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 			assert(r.Bool()) // have body
 
 			r.curfn.Body = r.stmts()
+			markNoBounds(fn, r.curfn.Body)
 			r.curfn.Endlineno = r.pos()
 		}
 

@@ -544,6 +544,7 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 func walkSliceToArray(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	// Replace T(x) with *(*T)(x).
 	conv := typecheck.Expr(ir.NewConvExpr(base.Pos, ir.OCONV, types.NewPtr(n.Type()), n.X)).(*ir.ConvExpr)
+	conv.SetBounded(n.Bounded())
 	deref := typecheck.Expr(ir.NewStarExpr(base.Pos, conv)).(*ir.StarExpr)
 
 	// The OSLICE2ARRPTR conversion handles checking the slice length,
