@@ -180,6 +180,7 @@ type pragmas struct {
 	ABIInternal     string
 	ABIInternalPos  syntax.Pos
 	MakeNoZeroPos   syntax.Pos
+	MustStackPos    syntax.Pos
 }
 
 func (p *pragmas) Nointerface() bool {
@@ -235,6 +236,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.MakeNoZeroPos.IsKnown() {
 		p.error(syntax.Error{Pos: pragma.MakeNoZeroPos, Msg: "misplaced go:makenozero directive"})
 	}
+	if pragma.MustStackPos.IsKnown() {
+		p.error(syntax.Error{Pos: pragma.MustStackPos, Msg: "misplaced go:muststack directive"})
+	}
 }
 
 // pragma is called concurrently if files are parsed concurrently.
@@ -262,6 +266,17 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:muststack", strings.HasPrefix(text, "go:muststack "), strings.HasPrefix(text, "go:muststack\t"):
+		if strings.TrimSpace(text) != "go:muststack" {
+			p.error(syntax.Error{Pos: pos, Msg: "go:muststack takes no arguments"})
+			break
+		}
+		if pragma.MustStackPos.IsKnown() {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:muststack directive"})
+			break
+		}
+		pragma.MustStackPos = pos
+
 	case text == "go:makenozero", strings.HasPrefix(text, "go:makenozero "), strings.HasPrefix(text, "go:makenozero\t"):
 		if strings.TrimSpace(text) != "go:makenozero" {
 			p.error(syntax.Error{Pos: pos, Msg: "go:makenozero takes no arguments"})

@@ -1784,7 +1784,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 	default:
 		panic("unexpected statement")
 
-	case stmtAssign:
+	case stmtAssign, stmtAssignMustStack:
 		pos := r.pos()
 		names, lhs := r.assignList()
 		rhs := r.multiExpr()
@@ -1801,6 +1801,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
 		if len(lhs) == 1 && len(rhs) == 1 {
 			n := ir.NewAssignStmt(pos, lhs[0], rhs[0])
 			n.Def = r.initDefn(n, names)
+			n.MustStack = tag == stmtAssignMustStack
 			return n
 		}
 

@@ -28,6 +28,7 @@ const (
 	stmtFor
 	stmtSwitch
 	stmtSelect
+	stmtAssignMustStack // stmtAssign with a stack-allocation assertion
 )
 
 // A codeExpr distinguishes among expression encodings.

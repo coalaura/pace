@@ -9,6 +9,7 @@ PACE (Progressive Augmented Compiler Extensions) is an independent compiler/tool
 * `//go:inline` forces eligible functions to be inlined regardless of normal cost heuristics; ordinary inlining eligibility restrictions still apply.
 * `//go:nobounds` suppresses runtime index/slice bounds checks originating in the annotated function body, including slice-to-array conversions. Invalid accesses have unsafe/unspecified consequences rather than Go's normal bounds panic. Compile-time bounds errors, nil checks and `checkptr` remain in effect. The behavior follows the original function across inlining and package boundaries; callees retain their own checking policy. It composes with `//go:inline` and stock Go ignores it.
 * `//go:makenozero` leaves the entire backing allocation of the immediately following local slice `make` uninitialized, while retaining normal escape analysis and length/capacity validation. Only pointer-free element types are allowed. See [uninitialized slices](#uninitialized-slices) for usage.
+* `//go:muststack` is a compile-time performance assertion: the following local variable and storage directly created by its initializer must stay on the stack. It reports heap allocation rather than overriding escape analysis. See [stack assertions](#stack-assertions).
 * `//go:linkinternal` allows functions to inherit the compiler intrinsic behavior of internal Go functions while retaining a standard-Go fallback.
 * `//go:abiinternal` allows ordinary Plan 9 assembly functions to use Go's internal register ABI with an explicit argument and result register mapping on **amd64, arm64, loong64, ppc64, ppc64le, riscv64 and s390x**.
 
@@ -38,6 +39,19 @@ Initial values are unspecified, including when memory happens to contain zeros. 
 Lowering is compiler-only. Stack allocations use normal compiler stack storage with backing-storage zeroing omitted. Heap allocations validate dimensions and byte-size arithmetic in compiler IR, then call the existing `runtime.mallocgc(size, nil, false)` and construct a slice with the requested length and capacity. Normal length/capacity checks, signed/unsigned conversions, wide-dimension narrowing on 32-bit targets, multiplication-overflow detection and the distinction between length and capacity panics are preserved.
 
 The deliberate exception is the runtime-specific address-space/allocation limit: PACE does not reproduce or depend on `runtime.maxAlloc`. Allocations exceeding that limit are invalid and may fail differently from ordinary `make`, even when their dimensions and byte size are otherwise representable. Arithmetic overflow is still detected before `mallocgc`; the exception applies only after a representable byte size has been established. No runtime modifications or additional allocation helpers are required; the matching stock GOROOT remains untouched.
+
+### Stack assertions
+
+Place the argument-free directive above a single-name local `:=` declaration:
+
+```go
+//go:muststack
+buf := make([]byte, 4096)
+```
+
+The assertion covers the variable itself and directly-created initial storage, including slice backing arrays, `new(T)` and `&T{}`. Ordinary escape analysis still makes every allocation decision. If a later use makes that storage escape, or stack-only storage cannot be guaranteed (such as a variable-capacity slice or a runtime helper with a heap fallback), compilation fails at the declaration with the variable name. This is a performance assertion, not an unsafe escape-analysis override or a guarantee about allocations inside called functions.
+
+`//go:muststack` and `//go:makenozero` can appear together in either order in one contiguous directive block immediately above the declaration. Blank lines and unrelated comments cannot separate the directives or the declaration. Arguments, duplicates, multiple-name declarations, reassignments and other placements are rejected. Stock Go accepts the source and ignores the directive.
 
 ### Assembly register mappings
 
