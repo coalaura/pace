@@ -1265,6 +1265,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
 			}
 		}
 	} else {
+		fn.Align = int16(r.Len())
 		r.addBody(name.Func, method)
 	}
 	r.Sync(pkgbits.SyncEOF)
