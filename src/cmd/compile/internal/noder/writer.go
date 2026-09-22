@@ -99,6 +99,7 @@ type pkgWriter struct {
 	cgoPragmas [][]string
 
 	makeNoZero map[*syntax.CallExpr]bool
+	mustStack  map[*syntax.AssignStmt]bool
 }
 
 // newPkgWriter returns an initialized pkgWriter for the specified
@@ -1552,7 +1553,12 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
 	lhs := syntax.UnpackListExpr(lhs0)
 	rhs := syntax.UnpackListExpr(rhs0)
 
-	w.Code(stmtAssign)
+	statement, _ := pos.(*syntax.AssignStmt)
+	if w.p.mustStack[statement] {
+		w.Code(stmtAssignMustStack)
+	} else {
+		w.Code(stmtAssign)
+	}
 	w.pos(pos)
 
 	// As if w.assignList(lhs0).
@@ -2960,6 +2966,9 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 	pragma := p.(*pragmas)
 	if pragma.MakeNoZeroPos.IsKnown() {
 		pw.errorf(pragma.MakeNoZeroPos, "misplaced go:makenozero directive")
+	}
+	if pragma.MustStackPos.IsKnown() {
+		pw.errorf(pragma.MustStackPos, "misplaced go:muststack directive")
 	}
 
 	if pragma.ABIInternal != "" && allowed != funcPragmas {

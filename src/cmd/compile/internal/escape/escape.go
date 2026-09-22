@@ -381,6 +381,7 @@ func (b *batch) finish(fns []*ir.Func) {
 	}
 
 	for _, fn := range fns {
+		checkMustStack(fn)
 		if ir.MatchAstDump(fn, "escape") {
 			ir.AstDump(fn, "escape, "+ir.FuncName(fn))
 		}
