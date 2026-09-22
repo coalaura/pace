@@ -7,7 +7,8 @@ PACE (Progressive Augmented Compiler Extensions) is an independent compiler/tool
 ## Extensions
 
 * `//go:inline` forces eligible functions to be inlined regardless of normal cost heuristics; ordinary inlining eligibility restrictions still apply.
-* `//go:nobounds` suppresses runtime index/slice bounds checks originating in the annotated function body, including slice-to-array conversions. Invalid accesses have unsafe/unspecified consequences rather than Go's normal bounds panic. Compile-time bounds errors, nil checks and `checkptr` remain in effect. The behavior follows the original function across inlining and package boundaries; callees retain their own checking policy. It composes with `//go:inline`, and stock Go ignores it.
+* `//go:nobounds` suppresses runtime index/slice bounds checks originating in the annotated function body, including slice-to-array conversions. Invalid accesses have unsafe/unspecified consequences rather than Go's normal bounds panic. Compile-time bounds errors, nil checks and `checkptr` remain in effect. The behavior follows the original function across inlining and package boundaries; callees retain their own checking policy. It composes with `//go:inline` and stock Go ignores it.
+* `//go:makenozero` leaves the entire backing allocation of the immediately following local slice `make` uninitialized, while retaining normal escape analysis and length/capacity validation. Only pointer-free element types are allowed. See [uninitialized slices](#uninitialized-slices) for usage.
 * `//go:linkinternal` allows functions to inherit the compiler intrinsic behavior of internal Go functions while retaining a standard-Go fallback.
 * `//go:abiinternal` allows ordinary Plan 9 assembly functions to use Go's internal register ABI with an explicit argument and result register mapping on **amd64, arm64, loong64, ppc64, ppc64le, riscv64 and s390x**.
 
@@ -20,6 +21,23 @@ same source
 ```
 
 Keep valid fallback implementations and architecture-appropriate build constraints in your source.
+
+### Uninitialized slices
+
+Place the argument-free directive directly above a single-name short declaration:
+
+```go
+//go:makenozero
+buf := make([]byte, 16, 32)
+```
+
+Here `len(buf)` is 16 and `cap(buf)` is 32 and all 32 backing bytes are uninitialized. Without an explicit capacity, the allocation has the requested length. Scalars such as `uint64`, arrays such as `[32]byte` and structs whose fields are all pointer-free are supported; pointers, strings, interfaces, slices, maps, funcs, channels and aggregates containing them are rejected. Generic element types must prove this property through their constraint's core type. Multiple RHS expressions and other placements are rejected.
+
+Initial values are unspecified, including when memory happens to contain zeros. Initialize every byte or element before relying on its value or exposing it. Ordinary escape analysis still chooses stack or heap storage. The allocation retains the property through inlining, including across packages. Stock Go ignores the directive and zero-initializes the allocation normally.
+
+Lowering is compiler-only. Stack allocations use normal compiler stack storage with backing-storage zeroing omitted. Heap allocations validate dimensions and byte-size arithmetic in compiler IR, then call the existing `runtime.mallocgc(size, nil, false)` and construct a slice with the requested length and capacity. Normal length/capacity checks, signed/unsigned conversions, wide-dimension narrowing on 32-bit targets, multiplication-overflow detection and the distinction between length and capacity panics are preserved.
+
+The deliberate exception is the runtime-specific address-space/allocation limit: PACE does not reproduce or depend on `runtime.maxAlloc`. Allocations exceeding that limit are invalid and may fail differently from ordinary `make`, even when their dimensions and byte size are otherwise representable. Arithmetic overflow is still detected before `mallocgc`; the exception applies only after a representable byte size has been established. No runtime modifications or additional allocation helpers are required; the matching stock GOROOT remains untouched.
 
 ### Assembly register mappings
 
@@ -78,7 +96,7 @@ $GOROOT/
 
 No stock Go files are overwritten. `pace` finds `compilepe` and `asmpe` beside its own executable and uses the matching GOROOT for all other tools, including the linker. Missing helpers or a mismatched GOROOT are errors. Running `go` remains unchanged.
 
-`pace version` prints `go version go1.27.1 <os>/<arch> (pace)`, while `pace env GOVERSION` remains `go1.27.1`. PACE compiler and assembler tool IDs have a `pace` suffix, separating their build actions from stock Go in the normal shared build cache.
+`pace version` prints `go version go1.27.1 <os>/<arch> (pace)`, while `pace env GOVERSION` remains `go1.27.1`. PACE compiler and assembler tool IDs have a `pace` marker, separating their build actions from stock Go in the normal shared build cache. Release tool identities use the release version, without an executable build ID; development versions retain Go's normal build-ID behavior.
 
 PACE stays on the local matching toolchain: automatic `GOTOOLCHAIN` switching and downloading are disabled. If a module requires a newer Go release, install the matching PACE and Go releases yourself. PACE does not collect or upload telemetry; `pace telemetry` is disabled and the stock Go telemetry configuration is left alone.
 
@@ -86,7 +104,7 @@ To uninstall, remove only `$GOROOT/bin/pace`, `$GOROOT/bin/compilepe`, `$GOROOT/
 
 ## Versioning and source builds
 
-PACE release tags use `pace1.27.1`, `pace1.27.2`, `pace1.28.0` and so on, matching the corresponding Go release. PACE 1.27.1 is based on Go 1.27.1. Upstream-style `go1.27.1` tags identify upstream bases, not PACE releases.
+PACE release tags use exactly `paceX.Y.Z`, matching the root `VERSION` and the corresponding Go release: Go 1.27.1 uses `pace1.27.1`, Go 1.27.2 uses `pace1.27.2`, and Go 1.28.0 uses `pace1.28.0`. PACE-only revision suffixes are not supported. The current feature set is frozen into `pace1.27.1`; future PACE feature releases accompany new upstream Go versions. Upstream-style `go1.27.1` tags identify upstream bases, not PACE releases.
 
 PACE uses the ordinary [Go source-tree build process](https://go.dev/doc/install/source), with the matching official Go release as the bootstrap compiler. Source builds retain `bin/go` and the ordinary `compile`/`asm` tool names for bootstrap and development. The [release workflow](.github/workflows/release.yml) then uses that toolchain to cross-build `cmd/go`, `cmd/compile` and `cmd/asm` as `pace`, `compilepe` and `asmpe`. Distribution policy activates only under the release executable names.
 

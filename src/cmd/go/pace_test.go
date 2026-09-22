@@ -98,6 +98,9 @@ func TestPACEOverlay(t *testing.T) {
 			if !strings.HasPrefix(got, helper+" version "+runtime.Version()+" pace") {
 				t.Fatalf("PACE tool identity = %q", got)
 			}
+			if !strings.Contains(runtime.Version(), "devel") && strings.Contains(got, " buildID=") {
+				t.Fatalf("PACE release tool identity includes an executable build ID: %q", got)
+			}
 		}
 		// The stock linker also opens counters unless the parent supplies an
 		// isolated, disabled configuration.
@@ -202,7 +205,22 @@ func TestPACEOverlay(t *testing.T) {
 			t.Skip("requires PACE_TEST_GOROOT pointing to a matching, unmodified Go installation")
 		}
 
-		err := os.WriteFile(filepath.Join(directory, "main.go"), []byte("package main\nimport \"fmt\"\nfunc main() { fmt.Println(42) }\n"), 0666)
+		err := os.WriteFile(filepath.Join(directory, "main.go"), []byte(`package main
+import "fmt"
+//go:noinline
+func buffer(length int) []uint64 {
+	//go:makenozero
+	result := make([]uint64, length, 2*length)
+	return result
+}
+func main() {
+	data := buffer(16)
+	for index := range data[:cap(data)] {
+		data[:cap(data)][index] = uint64(index)
+	}
+	fmt.Println(data[15])
+}
+`), 0666)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -220,6 +238,7 @@ func TestPACEOverlay(t *testing.T) {
 			{"overlay", paceTool, root},
 		}
 		ids := make(map[string]string, len(toolchains))
+		runtimeIDs := make(map[string]string, len(toolchains))
 		for round := range 2 {
 			for _, toolchain := range toolchains {
 				t.Setenv("GOROOT", toolchain.root)
@@ -232,8 +251,26 @@ func TestPACEOverlay(t *testing.T) {
 					t.Fatalf("%s cache identity changed: %q != %q", toolchain.name, id, ids[toolchain.name])
 				}
 				ids[toolchain.name] = id
+
+				runtimeID := run(t, toolchain.tool, "list", "-export", "-f", "{{.BuildID}}", "runtime")
+				if runtimeID == "" || (toolchain.name != "stock" && runtimeID == runtimeIDs["stock"]) {
+					t.Fatalf("shared runtime cache identity: %s %q, stock %q", toolchain.name, runtimeID, runtimeIDs["stock"])
+				}
+				if round != 0 && runtimeID != runtimeIDs[toolchain.name] {
+					t.Fatalf("%s runtime cache identity changed: %q != %q", toolchain.name, runtimeID, runtimeIDs[toolchain.name])
+				}
+				runtimeIDs[toolchain.name] = runtimeID
 			}
 		}
+	})
+
+	t.Run("makenozero", func(t *testing.T) {
+		if os.Getenv("PACE_TEST_GOROOT") == "" {
+			t.Skip("requires PACE_TEST_GOROOT pointing to a matching, unmodified Go installation")
+		}
+		// Execute compiler-lowered allocations against the untouched installed runtime.
+		run(t, paceTool, "test", "-vet=off", filepath.Join(testGOROOT, "src", "cmd", "compile", "internal", "test", "testdata", "makenozero", "semantics_test.go"),
+			"-run", "^TestMakeNoZero", "-count=1")
 	})
 
 	t.Run("no-toolchain-switch", func(t *testing.T) {

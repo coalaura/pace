@@ -440,9 +440,10 @@ func (n *LogicalExpr) SetOp(op Op) {
 // but *not* OMAKE (that's a pre-typechecking CallExpr).
 type MakeExpr struct {
 	miniExpr
-	RType Node `mknode:"-"` // see reflectdata/helpers.go
-	Len   Node
-	Cap   Node
+	RType  Node `mknode:"-"` // see reflectdata/helpers.go
+	Len    Node
+	Cap    Node
+	NoZero bool // omit initialization of pointer-free slice backing storage
 }
 
 func NewMakeExpr(pos src.XPos, op Op, len, cap Node) *MakeExpr {

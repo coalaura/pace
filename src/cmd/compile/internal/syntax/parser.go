@@ -2272,6 +2272,7 @@ func (p *parser) labeledStmtOrNil(label *Name) Stmt {
 	s.pos = p.pos()
 	s.Label = label
 
+	p.clearPragma()
 	p.want(_Colon)
 
 	if p.tok == _Rbrace {
@@ -2304,6 +2305,7 @@ func (p *parser) blockStmt(context string) *BlockStmt {
 	s := new(BlockStmt)
 	s.pos = p.pos()
 
+	p.clearPragma()
 	// people coming from C may forget that braces are mandatory in Go
 	if !p.got(_Lbrace) {
 		p.syntaxError("expected { after " + context)
@@ -2556,6 +2558,7 @@ func (p *parser) caseClause() *CaseClause {
 	}
 
 	c.Colon = p.pos()
+	p.clearPragma()
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
@@ -2594,6 +2597,7 @@ func (p *parser) commClause() *CommClause {
 	}
 
 	c.Colon = p.pos()
+	p.clearPragma()
 	p.want(_Colon)
 	c.Body = p.stmtList()
 
@@ -2615,12 +2619,21 @@ func (p *parser) stmtOrNil() Stmt {
 	// Most statements (assignments) start with an identifier;
 	// look for it first before doing anything more expensive.
 	if p.tok == _Name {
-		p.clearPragma()
+		pragma := p.takePragma()
 		lhs := p.exprList()
 		if label, ok := lhs.(*Name); ok && p.tok == _Colon {
+			if pragma != nil {
+				p.pragh(label.Pos(), false, "", pragma)
+			}
 			return p.labeledStmtOrNil(label)
 		}
-		return p.simpleStmt(lhs, 0)
+		statement := p.simpleStmt(lhs, 0)
+		if assignment, ok := statement.(*AssignStmt); ok {
+			assignment.Pragma = pragma
+		} else if pragma != nil {
+			p.pragh(statement.Pos(), false, "", pragma)
+		}
+		return statement
 	}
 
 	switch p.tok {

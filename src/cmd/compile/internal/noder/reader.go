@@ -2513,12 +2513,13 @@ func (r *reader) expr() (res ir.Node) {
 		}
 		return n
 
-	case exprMake:
+	case exprMake, exprMakeNoZero:
 		pos := r.pos()
 		typ := r.exprType()
 		extra := r.exprs()
 		n := typecheck.Expr(ir.NewCallExpr(pos, ir.OMAKE, nil, append([]ir.Node{typ}, extra...))).(*ir.MakeExpr)
 		n.RType = r.rtype(pos)
+		n.NoZero = tag == exprMakeNoZero
 		return n
 
 	case exprNew:
