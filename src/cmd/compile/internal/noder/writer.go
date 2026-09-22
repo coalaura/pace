@@ -1224,6 +1224,13 @@ func (w *writer) funcExt(obj *types2.Func) {
 	}
 
 	w.Bool(false) // stub extension
+	// Only definitions need alignment. Generic definitions retain this record
+	// for instantiation; relocFuncExt omits it from ordinary imported stubs.
+	var alignment int16
+	if pragma, ok := decl.Pragma.(*pragmas); ok {
+		alignment = pragma.Align
+	}
+	w.Len(int(alignment))
 	w.Reloc(pkgbits.SectionBody, body)
 	w.Sync(pkgbits.SyncEOF)
 }
@@ -2864,6 +2871,9 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		pw.checkPragmas(n.Pragma, funcPragmas, false)
 		pw.recordABIInternal(n)
 		pw.checkReadOnly(n)
+		if pragma, ok := n.Pragma.(*pragmas); ok && pragma.Align != 0 && n.Body == nil {
+			pw.errorf(pragma.AlignPos, "go:align requires a function body")
+		}
 
 		obj := pw.info.Defs[n.Name].(*types2.Func)
 		pw.funDecls[obj] = n
@@ -2978,6 +2988,9 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 	}
 	if pragma.ReadOnly != nil && allowed != funcPragmas {
 		pw.errorf(pragma.ReadOnlyPos, "misplaced go:readonly directive")
+	}
+	if pragma.AlignPos.IsKnown() && allowed != funcPragmas {
+		pw.errorf(pragma.AlignPos, "misplaced go:align directive")
 	}
 
 	if pragma.LinkInternal != "" && allowed != funcPragmas {
