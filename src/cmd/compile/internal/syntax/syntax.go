@@ -33,7 +33,7 @@ var _ error = Error{} // verify that Error implements error
 // An ErrorHandler is called for each error encountered reading a .go file.
 type ErrorHandler func(err error)
 
-// A Pragma value augments a package, import, const, func, type, or var declaration.
+// A Pragma value augments a declaration or an assignment statement.
 // Its meaning is entirely up to the PragmaHandler,
 // except that nil is used to mean “no pragma seen.”
 type Pragma any
@@ -44,9 +44,10 @@ type Pragma any
 // The text is the directive, with the "//" prefix stripped.
 // The current pragma is saved at each package, import, const, func, type, or var
 // declaration, into the File, ImportDecl, ConstDecl, FuncDecl, TypeDecl, or VarDecl node.
+// Assignment statements beginning with an identifier save it in AssignStmt.
 //
 // If text is the empty string, the pragma is being returned
-// to the handler unused, meaning it appeared before a non-declaration.
+// to the handler unused, meaning it appeared in an unsupported position.
 // The handler may wish to report an error. In this case, pos is the
 // current parser position, not the position of the pragma itself.
 // Blank specifies whether the line is blank before the pragma.

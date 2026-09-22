@@ -37,7 +37,9 @@ func run() error {
 		if err != nil {
 			return err
 		}
+
 		fmt.Println(version)
+
 		return nil
 	}
 	if len(os.Args) < 2 || os.Args[1] != "package" {
@@ -87,19 +89,22 @@ func run() error {
 }
 
 func releaseVersion(tag string) (string, error) {
-	// Only stable release tags are supported: never silently strip a suffix.
+	// Only exact Go-version release tags are supported.
 	if !stableTag.MatchString(tag) {
 		return "", fmt.Errorf("expected a stable PACE tag such as pace1.27.1, got %q", tag)
 	}
+
 	data, err := os.ReadFile("VERSION")
 	if err != nil {
 		return "", err
 	}
+
 	upstream, _, _ := strings.Cut(string(data), "\n")
 	version := strings.TrimPrefix(tag, "pace")
 	if strings.TrimSpace(upstream) != "go"+version {
 		return "", fmt.Errorf("tag %s does not match VERSION %s", tag, upstream)
 	}
+
 	return version, nil
 }
 

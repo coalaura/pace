@@ -179,6 +179,7 @@ type pragmas struct {
 	LinkInternalPos syntax.Pos
 	ABIInternal     string
 	ABIInternalPos  syntax.Pos
+	MakeNoZeroPos   syntax.Pos
 }
 
 func (p *pragmas) Nointerface() bool {
@@ -231,6 +232,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.ABIInternal != "" {
 		p.error(syntax.Error{Pos: pragma.ABIInternalPos, Msg: "misplaced go:abiinternal directive"})
 	}
+	if pragma.MakeNoZeroPos.IsKnown() {
+		p.error(syntax.Error{Pos: pragma.MakeNoZeroPos, Msg: "misplaced go:makenozero directive"})
+	}
 }
 
 // pragma is called concurrently if files are parsed concurrently.
@@ -258,6 +262,17 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:makenozero", strings.HasPrefix(text, "go:makenozero "), strings.HasPrefix(text, "go:makenozero\t"):
+		if strings.TrimSpace(text) != "go:makenozero" {
+			p.error(syntax.Error{Pos: pos, Msg: "go:makenozero takes no arguments"})
+			break
+		}
+		if pragma.MakeNoZeroPos.IsKnown() {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:makenozero directive"})
+			break
+		}
+		pragma.MakeNoZeroPos = pos
+
 	case text == "go:abiinternal", strings.HasPrefix(text, "go:abiinternal "), strings.HasPrefix(text, "go:abiinternal\t"):
 		if pragma.ABIInternal != "" {
 			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:abiinternal directive"})

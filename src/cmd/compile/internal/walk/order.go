@@ -451,7 +451,9 @@ func orderMakeSliceCopy(s []ir.Node) {
 	}
 
 	mk := as.Y.(*ir.MakeExpr)
-	if mk.Esc() == ir.EscNone || mk.Len == nil || mk.Cap != nil {
+	// makeslicecopy zeroes the uncopied tail, which must remain uninitialized
+	// for go:makenozero allocations.
+	if mk.Esc() == ir.EscNone || mk.Len == nil || mk.Cap != nil || mk.NoZero {
 		return
 	}
 	mk.SetOp(ir.OMAKESLICECOPY)
