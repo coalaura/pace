@@ -1370,6 +1370,7 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
 	assert(fn.Nname.Defn != nil)
 
 	idx := r.Reloc(pkgbits.SectionBody)
+	r.applyReadOnly(fn, idx)
 
 	pri := pkgReaderIndex{r.p, idx, r.dict, method, nil}
 	bodyReader[fn] = pri

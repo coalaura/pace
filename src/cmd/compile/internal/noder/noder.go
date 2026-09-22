@@ -179,6 +179,8 @@ type pragmas struct {
 	LinkInternalPos syntax.Pos
 	ABIInternal     string
 	ABIInternalPos  syntax.Pos
+	ReadOnly        []string
+	ReadOnlyPos     syntax.Pos
 	MakeNoZeroPos   syntax.Pos
 	MustStackPos    syntax.Pos
 }
@@ -233,6 +235,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.ABIInternal != "" {
 		p.error(syntax.Error{Pos: pragma.ABIInternalPos, Msg: "misplaced go:abiinternal directive"})
 	}
+	if pragma.ReadOnly != nil {
+		p.error(syntax.Error{Pos: pragma.ReadOnlyPos, Msg: "misplaced go:readonly directive"})
+	}
 	if pragma.MakeNoZeroPos.IsKnown() {
 		p.error(syntax.Error{Pos: pragma.MakeNoZeroPos, Msg: "misplaced go:makenozero directive"})
 	}
@@ -266,6 +271,14 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:readonly", strings.HasPrefix(text, "go:readonly "), strings.HasPrefix(text, "go:readonly\t"):
+		if pragma.ReadOnly != nil {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:readonly directive"})
+			break
+		}
+		pragma.ReadOnly = strings.Split(strings.TrimPrefix(text, "go:readonly"), ",")
+		pragma.ReadOnlyPos = pos
+
 	case text == "go:muststack", strings.HasPrefix(text, "go:muststack "), strings.HasPrefix(text, "go:muststack\t"):
 		if strings.TrimSpace(text) != "go:muststack" {
 			p.error(syntax.Error{Pos: pos, Msg: "go:muststack takes no arguments"})
