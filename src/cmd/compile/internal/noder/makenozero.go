@@ -9,7 +9,7 @@ import (
 	"cmd/compile/internal/types2"
 )
 
-// checkStatementPragmas binds a statement directive to its one allocation,
+// checkStatementPragmas binds statement directives to their declaration,
 // before Unified IR serializes the body for local or cross-package inlining.
 func (pw *pkgWriter) checkStatementPragmas(statement *syntax.AssignStmt) {
 	pragma, _ := statement.Pragma.(*pragmas)
@@ -18,16 +18,44 @@ func (pw *pkgWriter) checkStatementPragmas(statement *syntax.AssignStmt) {
 	}
 
 	position := pragma.MakeNoZeroPos
+	mustStack := pragma.MustStackPos
 	pragma.MakeNoZeroPos = syntax.Pos{}
+	pragma.MustStackPos = syntax.Pos{}
 	pw.checkPragmas(pragma, 0, false)
+
+	// Both orders form one block. Every line in the block must be a supported
+	// statement directive, with no intervening blank lines or other comments.
+	first, last := position, mustStack
+	if !first.IsKnown() || last.IsKnown() && last.Line() < first.Line() {
+		first, last = last, first
+	}
+	contiguous := true
+	if last.IsKnown() {
+		contiguous = first.Base() == last.Base() && first.Line()+1 == last.Line()
+	} else {
+		last = first
+	}
+	contiguous = contiguous && last.Base() == statement.Lhs.Pos().Base() && last.Line()+1 == statement.Lhs.Pos().Line()
+
+	name, singleName := statement.Lhs.(*syntax.Name)
+	declaration := statement.Op == syntax.Def && singleName && name.Value != "_" && pw.info.Defs[name] != nil
+	if mustStack.IsKnown() {
+		if !declaration || !contiguous {
+			pw.errorf(mustStack, "go:muststack requires an immediately following single-name := declaration")
+		} else {
+			if pw.mustStack == nil {
+				pw.mustStack = make(map[*syntax.AssignStmt]bool)
+			}
+			pw.mustStack[statement] = true
+		}
+	}
+
 	if !position.IsKnown() {
 		return
 	}
 
-	_, singleName := statement.Lhs.(*syntax.Name)
 	call, singleCall := statement.Rhs.(*syntax.CallExpr)
-	if statement.Op != syntax.Def || !singleName || !singleCall ||
-		position.Base() != statement.Lhs.Pos().Base() || position.Line()+1 != statement.Lhs.Pos().Line() {
+	if !declaration || !singleCall || !contiguous {
 		pw.errorf(position, "go:makenozero requires an immediately following single-name := make([]T, len[, cap]) statement")
 		return
 	}

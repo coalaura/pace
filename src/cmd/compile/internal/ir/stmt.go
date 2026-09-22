@@ -89,9 +89,10 @@ func (n *AssignListStmt) SetOp(op Op) {
 // If Def is true, the assignment is a :=.
 type AssignStmt struct {
 	miniStmt
-	X   Node
-	Def bool
-	Y   Node
+	X         Node
+	Def       bool
+	MustStack bool // assert stack storage for X and allocations in its initial value
+	Y         Node
 }
 
 func NewAssignStmt(pos src.XPos, x, y Node) *AssignStmt {
