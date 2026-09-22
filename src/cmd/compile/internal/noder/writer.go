@@ -1197,6 +1197,7 @@ func (w *writer) funcExt(obj *types2.Func) {
 
 	sig, block := obj.Type().(*types2.Signature), decl.Body
 	body, closureVars := w.p.bodyIdx(sig, block, w.dict)
+	w.recordReadOnly(decl, body)
 	if len(closureVars) > 0 {
 		fmt.Fprintln(os.Stderr, "CLOSURE", closureVars)
 	}
@@ -2862,6 +2863,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 	case *syntax.FuncDecl:
 		pw.checkPragmas(n.Pragma, funcPragmas, false)
 		pw.recordABIInternal(n)
+		pw.checkReadOnly(n)
 
 		obj := pw.info.Defs[n.Name].(*types2.Func)
 		pw.funDecls[obj] = n
@@ -2973,6 +2975,9 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 
 	if pragma.ABIInternal != "" && allowed != funcPragmas {
 		pw.errorf(pragma.ABIInternalPos, "misplaced go:abiinternal directive")
+	}
+	if pragma.ReadOnly != nil && allowed != funcPragmas {
+		pw.errorf(pragma.ReadOnlyPos, "misplaced go:readonly directive")
 	}
 
 	if pragma.LinkInternal != "" && allowed != funcPragmas {

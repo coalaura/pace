@@ -459,7 +459,10 @@ func (b *batch) paramTag(fn *ir.Func, narg int, f *types.Field) string {
 			if diagnose && f.Sym != nil {
 				base.WarnfAt(f.Pos, "%v does not escape", name())
 			}
-			esc.AddMutator(0)
+			// Readonly constrains mutation through this parameter, not calls.
+			if !f.ReadOnly() {
+				esc.AddMutator(0)
+			}
 			esc.AddCallee(0)
 		} else {
 			if diagnose && f.Sym != nil {
