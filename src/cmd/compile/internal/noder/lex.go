@@ -28,6 +28,7 @@ const (
 		ir.Nosplit |
 		ir.Noinline |
 		ir.ForceInline |
+		ir.NoBounds |
 		ir.NoCheckPtr |
 		ir.RegisterParams | // TODO(register args) remove after register abi is working
 		ir.CgoUnsafeArgs |
@@ -57,6 +58,8 @@ func pragmaFlag(verb string) ir.PragmaFlag {
 		return ir.Noinline
 	case "go:inline":
 		return ir.ForceInline
+	case "go:nobounds":
+		return ir.NoBounds
 	case "go:nocheckptr":
 		return ir.NoCheckPtr
 	case "go:systemstack":
