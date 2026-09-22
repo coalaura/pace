@@ -57,8 +57,8 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          # Source-tree tools keep upstream IDs. Isolate build-time artifacts
-          # from the stock bootstrap cache; installed PACE uses normal GOCACHE.
+          # Keep release build artifacts in a dedicated cache; installed PACE
+          # uses normal GOCACHE with pace-marked compiler and assembler IDs.
           export GOCACHE="$RUNNER_TEMP/source-cache"
           export GOROOT="$GITHUB_WORKSPACE"
           suffix=''

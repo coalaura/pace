@@ -423,6 +423,9 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 
 // walkMakeSlice walks an OMAKESLICE node.
 func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+	if n.NoZero && n.Type().Elem().HasPointers() {
+		base.Fatalf("go:makenozero with pointer-containing element type")
+	}
 	len := n.Len
 	cap := n.Cap
 	len = safeExpr(len, init)
@@ -462,7 +465,9 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// s = arr[:len]
 			t := types.NewArray(t.Elem(), cap) // [cap]E
 			arr := typecheck.TempAt(base.Pos, ir.CurFunc, t)
-			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, arr, nil))    // zero temp
+			if !n.NoZero {
+				appendWalkStmt(init, ir.NewAssignStmt(base.Pos, arr, nil)) // zero temp
+			}
 			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, nil) // arr[:len]
 			// The conv is necessary in case n.Type is named.
 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
@@ -510,8 +515,10 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 				{Sym: field, Type: t},
 			})
 			t.SetNoalg(true)
-			store := typecheck.TempAt(base.Pos, ir.CurFunc, t)            // var store struct{_ uintptr[0]; arr [K]E}
-			nif.Body.Append(ir.NewAssignStmt(base.Pos, store, nil))       // store = {} (zero it)
+			store := typecheck.TempAt(base.Pos, ir.CurFunc, t) // var store struct{_ uintptr[0]; arr [K]E}
+			if !n.NoZero {
+				nif.Body.Append(ir.NewAssignStmt(base.Pos, store, nil)) // store = {} (zero it)
+			}
 			arr := ir.NewSelectorExpr(base.Pos, ir.ODOT, store, field)    // arr = store.arr
 			s := ir.NewSliceExpr(base.Pos, ir.OSLICE, arr, nil, len, cap) // store.arr[:len:cap]
 			nif.Body.Append(ir.NewAssignStmt(base.Pos, slice, s))         // slice = store.arr[:len:cap]
@@ -537,8 +544,15 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		fnname = "makeslice"
 		argtype = types.Types[types.TINT]
 	}
-	fn := typecheck.LookupRuntime(fnname)
-	ptr := mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), typecheck.Conv(len, argtype), typecheck.Conv(cap, argtype))
+	lenarg := typecheck.Conv(len, argtype)
+	caparg := typecheck.Conv(cap, argtype)
+	var ptr *ir.CallExpr
+	if n.NoZero {
+		ptr = walkMakeSliceNoZero(n, lenarg, caparg, init)
+	} else {
+		fn := typecheck.LookupRuntime(fnname)
+		ptr = mkcall1(fn, types.Types[types.TUNSAFEPTR], init, reflectdata.MakeSliceElemRType(base.Pos, n), lenarg, caparg)
+	}
 	ptr.MarkNonNil()
 	len = typecheck.Conv(len, types.Types[types.TINT])
 	cap = typecheck.Conv(cap, types.Types[types.TINT])

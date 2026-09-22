@@ -97,6 +97,8 @@ type pkgWriter struct {
 	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
 	// passed through to cmd/link.
 	cgoPragmas [][]string
+
+	makeNoZero map[*syntax.CallExpr]bool
 }
 
 // newPkgWriter returns an initialized pkgWriter for the specified
@@ -2095,7 +2097,11 @@ func (w *writer) expr(expr syntax.Expr) {
 				assert(len(expr.ArgList) >= 1)
 				assert(!expr.HasDots)
 
-				w.Code(exprMake)
+				if w.p.makeNoZero[expr] {
+					w.Code(exprMakeNoZero)
+				} else {
+					w.Code(exprMake)
+				}
 				w.pos(expr)
 				w.exprType(nil, expr.ArgList[0])
 				w.exprs(expr.ArgList[1:])
@@ -2828,6 +2834,9 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 	pw := c.pw
 
 	switch n := n.(type) {
+	case *syntax.AssignStmt:
+		pw.checkStatementPragmas(n)
+
 	case *syntax.File:
 		pw.checkPragmas(n.Pragma, ir.GoBuildPragma, false)
 
@@ -2949,6 +2958,9 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 		return
 	}
 	pragma := p.(*pragmas)
+	if pragma.MakeNoZeroPos.IsKnown() {
+		pw.errorf(pragma.MakeNoZeroPos, "misplaced go:makenozero directive")
+	}
 
 	if pragma.ABIInternal != "" && allowed != funcPragmas {
 		pw.errorf(pragma.ABIInternalPos, "misplaced go:abiinternal directive")
