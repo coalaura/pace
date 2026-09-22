@@ -183,6 +183,8 @@ type pragmas struct {
 	ReadOnlyPos     syntax.Pos
 	MakeNoZeroPos   syntax.Pos
 	MustStackPos    syntax.Pos
+	Align           int16
+	AlignPos        syntax.Pos
 }
 
 func (p *pragmas) Nointerface() bool {
@@ -244,6 +246,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.MustStackPos.IsKnown() {
 		p.error(syntax.Error{Pos: pragma.MustStackPos, Msg: "misplaced go:muststack directive"})
 	}
+	if pragma.AlignPos.IsKnown() {
+		p.error(syntax.Error{Pos: pragma.AlignPos, Msg: "misplaced go:align directive"})
+	}
 }
 
 // pragma is called concurrently if files are parsed concurrently.
@@ -271,6 +276,26 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:align", strings.HasPrefix(text, "go:align "), strings.HasPrefix(text, "go:align\t"):
+		if pragma.AlignPos.IsKnown() {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:align directive"})
+			break
+		}
+		pragma.AlignPos = pos
+
+		fields := strings.Fields(text)
+		if len(fields) != 2 {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:align N"})
+			break
+		}
+
+		alignment, err := strconv.ParseUint(fields[1], 0, 16)
+		if err != nil || alignment < 8 || alignment > 2048 || alignment&(alignment-1) != 0 {
+			p.error(syntax.Error{Pos: pos, Msg: "go:align requires a power-of-two integer in the range 8..2048"})
+			break
+		}
+		pragma.Align = int16(alignment)
+
 	case text == "go:readonly", strings.HasPrefix(text, "go:readonly "), strings.HasPrefix(text, "go:readonly\t"):
 		if pragma.ReadOnly != nil {
 			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:readonly directive"})

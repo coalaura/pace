@@ -327,6 +327,8 @@ func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
 	}
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
+	// Apply the requested minimum after assembly, which may set its own alignment.
+	fn.LSym.Align = max(fn.LSym.Align, fn.Align)
 
 	// If we're compiling the package init function, search for any
 	// relocations that target global map init outline functions and

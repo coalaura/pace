@@ -155,6 +155,9 @@ type Func struct {
 	// LinkInternal is the import/path.Function intrinsic identity from go:linkinternal.
 	// The caller is responsible for matching the target's signature and semantics.
 	LinkInternal string
+
+	// Align is the minimum function-entry alignment from go:align, or zero.
+	Align int16
 }
 
 // WasmImport stores metadata associated with the //go:wasmimport pragma.
