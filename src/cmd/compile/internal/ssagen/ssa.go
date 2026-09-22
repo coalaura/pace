@@ -3558,7 +3558,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 				len := s.constInt(types.Types[types.TINT], bound)
 				if bound == 0 {
 					// Bounds check will never succeed.
-					s.boundsCheck(i, len, ssa.BoundsIndex, false)
+					s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 					// The return value won't be live. In case bounds checks
 					// are turned off, load from (*T)(nil) to cause a segfault.
 					return s.load(n.Type(), s.constNil(n.Type().PtrTo()))
@@ -3684,7 +3684,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		nelem := n.Type().Elem().NumElem()
 		arrlen := s.constInt(types.Types[types.TINT], nelem)
 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
-		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
+		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, n.Bounded())
 		op := ssa.OpSlicePtr
 		if nelem == 0 {
 			op = ssa.OpSlicePtrUnchecked
@@ -4531,7 +4531,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				// The bounds check must fail.  Might as well
 				// ignore the actual index and just use zeros.
 				z := s.constInt(types.Types[types.TINT], 0)
-				s.boundsCheck(z, z, ssa.BoundsIndex, false)
+				s.boundsCheck(z, z, ssa.BoundsIndex, left.Bounded())
 				return
 			}
 			if t.Size() == 0 {
@@ -4539,7 +4539,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				// Generate bounds check for left, since this can happen
 				// for 0-size assignment case, see issue #79236.
 				len := s.constInt(types.Types[types.TINT], n)
-				s.boundsCheck(i, len, ssa.BoundsIndex, false)
+				s.boundsCheck(i, len, ssa.BoundsIndex, left.Bounded())
 				return
 			}
 			if n != 1 {
@@ -4558,7 +4558,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 			// Rewrite to a = [1]{v}
 			len := s.constInt(types.Types[types.TINT], 1)
-			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
+			s.boundsCheck(i, len, ssa.BoundsIndex, left.Bounded()) // checks i == 0
 			v := s.newValue1(ssa.OpArrayMake1, t, right)
 			s.assign(left.X, v, false, 0)
 			return

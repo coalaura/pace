@@ -7,6 +7,7 @@ PACE (Progressive Augmented Compiler Extensions) is an independent compiler/tool
 ## Extensions
 
 * `//go:inline` forces eligible functions to be inlined regardless of normal cost heuristics; ordinary inlining eligibility restrictions still apply.
+* `//go:nobounds` suppresses runtime index/slice bounds checks originating in the annotated function body, including slice-to-array conversions. Invalid accesses have unsafe/unspecified consequences rather than Go's normal bounds panic. Compile-time bounds errors, nil checks and `checkptr` remain in effect. The behavior follows the original function across inlining and package boundaries; callees retain their own checking policy. It composes with `//go:inline`, and stock Go ignores it.
 * `//go:linkinternal` allows functions to inherit the compiler intrinsic behavior of internal Go functions while retaining a standard-Go fallback.
 * `//go:abiinternal` allows ordinary Plan 9 assembly functions to use Go's internal register ABI with an explicit argument and result register mapping on **amd64, arm64, loong64, ppc64, ppc64le, riscv64 and s390x**.
 
