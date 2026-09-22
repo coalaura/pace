@@ -430,13 +430,16 @@ type Field struct {
 const (
 	fieldIsDDD = 1 << iota // field is ... argument
 	fieldNointerface
+	fieldReadOnly // local bodyless input parameter; exported through its escape tag
 )
 
 func (f *Field) IsDDD() bool       { return f.flags&fieldIsDDD != 0 }
 func (f *Field) Nointerface() bool { return f.flags&fieldNointerface != 0 }
+func (f *Field) ReadOnly() bool    { return f.flags&fieldReadOnly != 0 }
 
 func (f *Field) SetIsDDD(b bool)       { f.flags.set(fieldIsDDD, b) }
 func (f *Field) SetNointerface(b bool) { f.flags.set(fieldNointerface, b) }
+func (f *Field) SetReadOnly(b bool)    { f.flags.set(fieldReadOnly, b) }
 
 // End returns the offset of the first byte immediately after this field.
 func (f *Field) End() int64 {
