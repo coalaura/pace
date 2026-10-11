@@ -20,8 +20,9 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
-		{Func{}, 192, 328},
-		{Name{}, 96, 160},
+		// Include PACE's uint32 pragma flags and function alignment metadata.
+		{Func{}, 196, 336},
+		{Name{}, 100, 168},
 		{miniExpr{}, 32, 48},
 		{miniNode{}, 12, 12},
 	}
