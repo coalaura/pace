@@ -79,19 +79,19 @@ The implementation supports scalar values assigned to exactly one integer regist
 | riscv64 | X5-X26, X28-X30 | X31 | MOV |
 | s390x | R2-R9 | R1 | MOVD |
 
-Architectures without integer ABIInternal parameter registers in Go 1.27.1 (`386`, `arm`, `mips`, `mipsle`, `mips64`, `mips64le` and `wasm`) reject the directive.
+Architectures without integer ABIInternal parameter registers in Go 1.27.3 (`386`, `arm`, `mips`, `mipsle`, `mips64`, `mips64le` and `wasm`) reject the directive.
 
 Assembly must be zero-frame `NOSPLIT` leaf code, with no calls, tail calls, explicit stack operations or stack operands. Branches must use labels within the function. Normal assembly argument information and stack maps are retained through the existing metadata machinery. As with other ABIInternal assembly, authors must preserve the target ABI's fixed-register invariants, including the link register on link-register architectures and, on amd64, `R14` (the current goroutine) and zeroed `X15`; there is no ABI0 wrapper to restore them. Explicit `<ABIInternal>` selectors remain restricted to the usual privileged packages.
 
 ## Installation
 
-**PACE 1.27.1 requires Go 1.27.1.** Each PACE release requires the exact matching standard Go release, not merely the same major/minor version. No second GOROOT or modified standard library is needed.
+**PACE 1.27.3 requires Go 1.27.3.** Each PACE release requires the exact matching standard Go release, not merely the same major/minor version. No second GOROOT or modified standard library is needed.
 
 1. Install the matching official Go release normally.
 2. Download the matching OS/architecture archive from [PACE releases](https://github.com/coalaura/pace/releases) and extract/copy its contents into that installation's GOROOT (`go env GOROOT`).
 3. Run `pace version`.
 
-Releases support Windows, Linux and macOS on amd64 and arm64. Windows archives are ZIP files; Linux and macOS archives are `.tar.gz` files. For example: `pace-1.27.1-windows-amd64.zip` or `pace-1.27.1-linux-arm64.tar.gz`.
+Releases support Windows, Linux and macOS on amd64 and arm64. Windows archives are ZIP files; Linux and macOS archives are `.tar.gz` files. For example: `pace-1.27.3-windows-amd64.zip` or `pace-1.27.3-linux-arm64.tar.gz`.
 
 The overlay contains exactly three executables, with `.exe` suffixes on Windows:
 
@@ -112,7 +112,7 @@ $GOROOT/
 
 No stock Go files are overwritten. `pace` finds `compilepe` and `asmpe` beside its own executable and uses the matching GOROOT for all other tools, including the linker. Missing helpers or a mismatched GOROOT are errors. Running `go` remains unchanged.
 
-`pace version` prints `go version go1.27.1 <os>/<arch> (pace)`, while `pace env GOVERSION` remains `go1.27.1`. PACE compiler and assembler tool IDs have a `pace` marker, separating their build actions from stock Go in the normal shared build cache. Release tool identities use the release version, without an executable build ID; development versions retain Go's normal build-ID behavior.
+`pace version` prints `go version go1.27.3 <os>/<arch> (pace)`, while `pace env GOVERSION` remains `go1.27.3`. PACE compiler and assembler tool IDs have a `pace` marker, separating their build actions from stock Go in the normal shared build cache. Release tool identities use the release version, without an executable build ID; development versions retain Go's normal build-ID behavior.
 
 PACE stays on the local matching toolchain: automatic `GOTOOLCHAIN` switching and downloading are disabled. If a module requires a newer Go release, install the matching PACE and Go releases yourself. PACE does not collect or upload telemetry; `pace telemetry` is disabled and the stock Go telemetry configuration is left alone.
 
@@ -120,7 +120,7 @@ To uninstall, remove only `$GOROOT/bin/pace`, `$GOROOT/bin/compilepe`, `$GOROOT/
 
 ## Versioning and source builds
 
-PACE release tags use exactly `paceX.Y.Z`, matching the root `VERSION` and the corresponding Go release: Go 1.27.1 uses `pace1.27.1`, Go 1.27.2 uses `pace1.27.2`, and Go 1.28.0 uses `pace1.28.0`. PACE-only revision suffixes are not supported. The current feature set is frozen into `pace1.27.1`; future PACE feature releases accompany new upstream Go versions. Upstream-style `go1.27.1` tags identify upstream bases, not PACE releases.
+PACE release tags use exactly `paceX.Y.Z`, matching the root `VERSION` and the corresponding Go release: Go 1.27.2 uses `pace1.27.2`, Go 1.27.3 uses `pace1.27.3`, and Go 1.28.0 uses `pace1.28.0`. PACE-only revision suffixes are not supported. PACE 1.27.3 rebases the PACE feature set onto Go 1.27.3; future PACE feature releases accompany new upstream Go versions. Upstream-style `go1.27.3` tags identify upstream bases, not PACE releases.
 
 PACE uses the ordinary [Go source-tree build process](https://go.dev/doc/install/source), with the matching official Go release as the bootstrap compiler. Source builds retain `bin/go` and the ordinary `compile`/`asm` tool names for bootstrap and development. The [release workflow](.github/workflows/release.yml) then uses that toolchain to cross-build `cmd/go`, `cmd/compile` and `cmd/asm` as `pace`, `compilepe` and `asmpe`. Distribution policy activates only under the release executable names.
 
