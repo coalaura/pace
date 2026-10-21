@@ -1296,6 +1296,11 @@ func (r *reader) typeExt(name *ir.Name) {
 
 func (r *reader) varExt(name *ir.Name) {
 	r.Sync(pkgbits.SyncVarExt)
+	// Export the contract, not MarkReadonly: imported symbols have no contents
+	// here, and SSA must not constant-fold loads from an empty symbol image.
+	if r.Bool() {
+		name.SetPragma(name.Pragma() | ir.Immutable)
+	}
 	r.linkname(name)
 }
 

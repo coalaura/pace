@@ -27,6 +27,14 @@ func MakeTask() {
 	var deps []*obj.LSym // initTask records for packages the current package depends on
 	var fns []*obj.LSym  // functions to call for package initialization
 
+	// Variables without an explicit initializer have no initialization statement
+	// for staticinit to visit. Their zero value is already final.
+	for _, name := range typecheck.Target.Externs {
+		if name.Pragma()&ir.Immutable != 0 && name.Defn == nil {
+			name.MarkReadonly()
+		}
+	}
+
 	// Find imported packages with init tasks.
 	for _, pkg := range typecheck.Target.Imports {
 		n, ok := pkg.Lookup(".inittask").Def.(*ir.Name)

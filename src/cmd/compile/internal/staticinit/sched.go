@@ -149,7 +149,21 @@ func (s *Schedule) tryStaticInit(n ir.Node) bool {
 	defer func() { base.Pos = lno }()
 
 	nam := lhs[0].(*ir.Name)
-	return s.StaticAssign(nam, 0, rhs, nam.Type())
+	before := len(s.Out)
+	static := s.StaticAssign(nam, 0, rhs, nam.Type())
+	// StaticAssign can succeed while emitting runtime writes to individual
+	// fields. Only wholly static immutable initializers may become readonly.
+	if static && len(s.Out) == before && nam.Pragma()&ir.Immutable != 0 {
+		nam.MarkReadonly()
+		for rhs != nil && rhs.Op() == ir.OCONVNOP {
+			rhs = rhs.(*ir.ConvExpr).X
+		}
+		backing := s.Temps[rhs]
+		if backing != nil {
+			backing.MarkReadonly()
+		}
+	}
+	return static
 }
 
 // like staticassign but we are copying an already

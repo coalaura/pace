@@ -183,6 +183,7 @@ type pragmas struct {
 	ReadOnlyPos     syntax.Pos
 	MakeNoZeroPos   syntax.Pos
 	MustStackPos    syntax.Pos
+	ImmutablePos    syntax.Pos
 	Align           int16
 	AlignPos        syntax.Pos
 }
@@ -246,6 +247,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 	if pragma.MustStackPos.IsKnown() {
 		p.error(syntax.Error{Pos: pragma.MustStackPos, Msg: "misplaced go:muststack directive"})
 	}
+	if pragma.ImmutablePos.IsKnown() {
+		p.error(syntax.Error{Pos: pragma.ImmutablePos, Msg: "misplaced go:immutable directive"})
+	}
 	if pragma.AlignPos.IsKnown() {
 		p.error(syntax.Error{Pos: pragma.AlignPos, Msg: "misplaced go:align directive"})
 	}
@@ -276,6 +280,17 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case text == "go:immutable", strings.HasPrefix(text, "go:immutable "), strings.HasPrefix(text, "go:immutable\t"):
+		if strings.TrimSpace(text) != "go:immutable" {
+			p.error(syntax.Error{Pos: pos, Msg: "go:immutable takes no arguments"})
+			break
+		}
+		if pragma.ImmutablePos.IsKnown() {
+			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:immutable directive"})
+			break
+		}
+		pragma.ImmutablePos = pos
+
 	case text == "go:align", strings.HasPrefix(text, "go:align "), strings.HasPrefix(text, "go:align\t"):
 		if pragma.AlignPos.IsKnown() {
 			p.error(syntax.Error{Pos: pos, Msg: "duplicate go:align directive"})
