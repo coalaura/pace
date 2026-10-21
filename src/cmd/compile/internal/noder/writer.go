@@ -100,6 +100,7 @@ type pkgWriter struct {
 
 	makeNoZero map[*syntax.CallExpr]bool
 	mustStack  map[*syntax.AssignStmt]bool
+	immutable  map[*types2.Var]bool
 }
 
 // newPkgWriter returns an initialized pkgWriter for the specified
@@ -1250,6 +1251,7 @@ func (w *writer) typeExt(obj *types2.TypeName) {
 
 func (w *writer) varExt(obj *types2.Var) {
 	w.Sync(pkgbits.SyncVarExt)
+	w.Bool(w.p.immutable[obj])
 	w.linkname(obj)
 }
 
@@ -2905,6 +2907,7 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
 		return c.withTParams(obj)
 
 	case *syntax.VarDecl:
+		pw.checkImmutableDecl(n)
 		pw.checkPragmas(n.Pragma, 0, true)
 
 		if p, ok := n.Pragma.(*pragmas); ok && len(p.Embeds) > 0 {
@@ -2976,6 +2979,9 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
 		return
 	}
 	pragma := p.(*pragmas)
+	if pragma.ImmutablePos.IsKnown() {
+		pw.errorf(pragma.ImmutablePos, "misplaced go:immutable directive")
+	}
 	if pragma.MakeNoZeroPos.IsKnown() {
 		pw.errorf(pragma.MakeNoZeroPos, "misplaced go:makenozero directive")
 	}

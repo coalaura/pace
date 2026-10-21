@@ -171,10 +171,10 @@ func (*Name) CanBeAnSSAAux() {}
 // XXX should it be part of the formatter?
 func (n *Name) DiagName() string { return obj.TrimInlineHash(fmt.Sprint(n.Sym())) }
 
-// Pragma returns the PragmaFlag for p, which must be for an OTYPE.
+// Pragma returns the PragmaFlag for p (OTYPE or ONAME).
 func (n *Name) Pragma() PragmaFlag { return n.pragma }
 
-// SetPragma sets the PragmaFlag for p, which must be for an OTYPE.
+// SetPragma sets the PragmaFlag for p (OTYPE or ONAME).
 func (n *Name) SetPragma(flag PragmaFlag) { n.pragma = flag }
 
 // Alias reports whether p, which must be for an OTYPE, is a type alias.

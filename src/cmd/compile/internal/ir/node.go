@@ -458,6 +458,7 @@ const (
 
 	ForceInline // func ignores inlining costs; does not override inlining restrictions, including Noinline
 	NoBounds    // func omits runtime bounds checks originating in its body
+	Immutable   // variable cannot be mutated or expose a mutable alias
 )
 
 var BlankNode *Name

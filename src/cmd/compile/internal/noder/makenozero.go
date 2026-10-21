@@ -16,6 +16,18 @@ func (pw *pkgWriter) checkStatementPragmas(statement *syntax.AssignStmt) {
 	if pragma == nil {
 		return
 	}
+	if pragma.ImmutablePos.IsKnown() {
+		position := pragma.ImmutablePos
+		pragma.ImmutablePos = syntax.Pos{}
+		pw.checkPragmas(pragma, 0, false)
+		name, single := statement.Lhs.(*syntax.Name)
+		if statement.Op != syntax.Def || !single || pw.info.Defs[name] == nil {
+			pw.errorf(position, "go:immutable requires a single-name variable declaration")
+			return
+		}
+		pw.recordImmutable(position, statement.Lhs.Pos(), name, statement.Rhs)
+		return
+	}
 
 	position := pragma.MakeNoZeroPos
 	mustStack := pragma.MustStackPos

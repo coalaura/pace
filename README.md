@@ -11,6 +11,7 @@ PACE (Progressive Augmented Compiler Extensions) is an independent compiler/tool
 * `//go:nobounds` suppresses runtime index/slice bounds checks originating in the annotated function body, including slice-to-array conversions. Invalid accesses have unsafe/unspecified consequences rather than Go's normal bounds panic. Compile-time bounds errors, nil checks and `checkptr` remain in effect. The behavior follows the original function across inlining and package boundaries; callees retain their own checking policy. It composes with `//go:inline` and stock Go ignores it.
 * `//go:makenozero` leaves the entire backing allocation of the immediately following local slice `make` uninitialized, while retaining normal escape analysis and length/capacity validation. Only pointer-free element types are allowed. See [uninitialized slices](#uninitialized-slices) for usage.
 * `//go:muststack` is a compile-time performance assertion: the following local variable and storage directly created by its initializer must stay on the stack. It reports heap allocation rather than overriding escape analysis. See [stack assertions](#stack-assertions).
+* `//go:immutable` makes a variable and its owned storage immutable after initialization. PACE rejects mutations and uses that could expose a mutable alias, and places eligible statically initialized globals in readonly storage. See [immutable variables](#immutable-variables).
 * `//go:readonly src, table` promises that a bodyless function does not modify memory through the listed named input parameters or references reachable from them. It is independent of `//go:noescape`: readonly references may still be retained beyond the call. Memory aliased through an unannotated parameter or global state may still be modified through that other path. Combine it with `//go:noescape` when both contracts hold; existing escape-analysis summaries then let callers benefit, including across packages. Stock Go accepts the source and ignores `readonly`.
 * `//go:linkinternal` allows functions to inherit the compiler intrinsic behavior of internal Go functions while retaining a standard-Go fallback.
 * `//go:abiinternal` allows ordinary Plan 9 assembly functions to use Go's internal register ABI with an explicit argument and result register mapping on **amd64, arm64, loong64, ppc64, ppc64le, riscv64 and s390x**.
@@ -54,6 +55,31 @@ buf := make([]byte, 4096)
 The assertion covers the variable itself and directly-created initial storage, including slice backing arrays, `new(T)` and `&T{}`. Ordinary escape analysis still makes every allocation decision. If a later use makes that storage escape, or stack-only storage cannot be guaranteed (such as a variable-capacity slice or a runtime helper with a heap fallback), compilation fails at the declaration with the variable name. This is a performance assertion, not an unsafe escape-analysis override or a guarantee about allocations inside called functions.
 
 `//go:muststack` and `//go:makenozero` can appear together in either order in one contiguous directive block immediately above the declaration. Blank lines and unrelated comments cannot separate the directives or the declaration. Arguments, duplicates, multiple-name declarations, reassignments and other placements are rejected. Stock Go accepts the source and ignores the directive.
+
+### Immutable variables
+
+Place the argument-free directive immediately above a single-name package or local `var` declaration, or a new single-name local `:=` declaration:
+
+```go
+//go:immutable
+var table = [4]uint64{10, 20, 30, 40}
+
+func example() int {
+	//go:immutable
+	data := []byte{1, 2, 3, 4}
+	return int(data[0]) + len(data)
+}
+```
+
+The declaration's initializer (or implicit zero value) is the only permitted write. Reassignment, compound assignment, increment/decrement, field and element writes, assignment through range/select statements, address-taking, slicing and implicit pointer-receiver calls or method values are compile-time errors. This includes writes in closures, other files and importing packages. Copies of pointer-free values are independent and may be passed to functions or modified normally. Checks run before inlining and generic instantiation, including for generic functions that are never instantiated; exported variable contracts survive package boundaries.
+
+Supported value types are booleans, numbers, and arrays or structs recursively containing only those types. Generic constraints must establish a supported core type. Strings, pointers, maps, interfaces, functions, channels and other reference-containing aggregates are currently rejected. Slices of supported pointer-free elements are also supported, but only with a fresh slice literal, builtin `make`, `nil`, or an implicit nil initializer. Existing slices, function results and conversions are not accepted as slice initializers because exclusive ownership cannot be established.
+
+An immutable slice permits element reads, `len`, `cap`, `range`, comparison with `nil`, copying into another slice with `copy`, conversion to a string where Go permits it, and `_ = data`. It cannot be returned, assigned to another variable, boxed in an interface, sent over a channel, sliced, appended to, cleared, or passed to arbitrary functions or methods. These restrictions deliberately reject even some harmless uses rather than admit an unproven mutable alias. A `//go:readonly` parameter contract does not relax them: that directive still permits retained references and mutation through other aliases, and its existing semantics are unchanged.
+
+The directive must immediately precede its declaration without intervening blank lines or comments. Arguments, duplicates, blank identifiers, multiple names, a directive on an entire `var (...)` group, `go:embed`, `go:linkname` on the variable, and combinations with `go:muststack` or `go:makenozero` are rejected. Individual declarations inside a `var` group may be annotated. The guarantee applies to PACE-compiled, type-safe Go; unsafe pointer fabrication and external assembly cannot be checked by the source compiler. Stock Go accepts the same source and ignores the directive, so it does not enforce immutability.
+
+Wholly static package initializers, including implicit zero values and eligible fresh slice backing arrays, use the compiler's existing readonly-symbol machinery and the linker's readonly data section (`.rodata`, or the platform equivalent). Initializers requiring runtime writes, including partially static composites, retain writable storage; local initialization continues to use ordinary escape analysis and stack/heap allocation. There is no runtime memory-protection transition. Existing SSA optimizations may fold or eliminate loads when their usual safety conditions hold; constant-index loads from eligible local-package readonly globals can become immediate constants, including across calls. The directive does not promise loop hoisting, elimination of every redundant load, or constant folding of imported data. No new optimizer pass or runtime support is required.
 
 ### Assembly register mappings
 

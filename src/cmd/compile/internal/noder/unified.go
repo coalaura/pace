@@ -324,6 +324,8 @@ func writePkgStub(m posMap, noders []*noder) string {
 	pw := newPkgWriter(m, pkg, info, otherInfo)
 
 	pw.collectDecls(noders)
+	pw.checkImmutable(noders)
+	base.ExitIfErrors()
 
 	publicRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPublic)
 	privateRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPrivate)
